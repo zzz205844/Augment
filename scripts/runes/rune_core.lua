@@ -39,6 +39,7 @@ RUNE_HANDLERS = {
 
 -- ========== 符文应用函数 ==========
 
+-- 根据符文名称清理旧效果并应用新效果
 function ApplyRune(inst, rune_name)
     if not _G.TheWorld.ismastersim then return end
     
@@ -101,6 +102,9 @@ function ApplyRune(inst, rune_name)
                             victim.components.health.SetVal = victim.components.health._doubleup_oldSetVal
                             victim.components.health._doubleup_oldSetVal = nil
                         end
+                        if victim._doubleup_revived then
+                            victim._doubleup_revived = nil
+                        end
                     end
                 end
                 inst._doubleup_victims = nil
@@ -118,6 +122,19 @@ function ApplyRune(inst, rune_name)
                 inst:RemoveEventCallback("killed", inst._beyond_death_killed_listener)
                 inst._beyond_death_killed_listener = nil
             end
+            if inst.components.health and inst._beyond_redirect_active then
+                inst.components.health.redirect = inst._beyond_old_redirect
+            end
+            inst._beyond_old_redirect = nil
+            inst._beyond_redirect_active = nil
+            if inst.components.health and inst.components.health._beyond_oldSetVal then
+                inst.components.health.SetVal = inst.components.health._beyond_oldSetVal
+                inst.components.health._beyond_oldSetVal = nil
+            end
+            inst._beyond_death_active = nil
+            inst._beyond_dying = nil
+            inst._beyond_force_death = nil
+            inst._beyond_saved = nil
         elseif old_rune == "连锁闪电" then
             if inst._chain_listener then
                 inst:RemoveEventCallback("onattackother", inst._chain_listener)
@@ -126,9 +143,28 @@ function ApplyRune(inst, rune_name)
             CHAIN_LIGHTNING_WORKERS[inst] = nil
         elseif old_rune == "禁字诀" then
             -- 恢复原始的Equip函数
-            if inst._forbidden_old_equip then
+            if inst._forbidden_old_equip and inst.components.inventory then
                 inst.components.inventory.Equip = inst._forbidden_old_equip
                 inst._forbidden_old_equip = nil
+            else
+                inst._forbidden_old_equip = nil
+            end
+            -- 移除监听与周期性任务
+            if inst._forbidden_attack_listener then
+                inst:RemoveEventCallback("onattackother", inst._forbidden_attack_listener)
+                inst._forbidden_attack_listener = nil
+            end
+            if inst._forbidden_health_listener then
+                inst:RemoveEventCallback("healthdelta", inst._forbidden_health_listener)
+                inst._forbidden_health_listener = nil
+            end
+            if inst._forbidden_equip_listener then
+                inst:RemoveEventCallback("equip", inst._forbidden_equip_listener)
+                inst._forbidden_equip_listener = nil
+            end
+            if inst._forbidden_bonus_task then
+                inst._forbidden_bonus_task:Cancel()
+                inst._forbidden_bonus_task = nil
             end
             -- 移除其他效果
             inst.components.locomotor:RemoveExternalSpeedMultiplier(inst, "forbidden_seal")
@@ -187,11 +223,12 @@ end
 
 -- ========== 随机选择符文 ==========
 
+-- 从当前测试池中随机挑选一个符文并应用
 function SelectRandomRune(inst)
     if not _G.TheWorld.ismastersim then return end
     
     -- 测试模式：只从金色符文池中随机选择一个符文
-    local selected_rune = GOLD_RUNES[_G.math.random(1, #GOLD_RUNES)]
+    local selected_rune = PRISMATIC_RUNES[_G.math.random(1, #PRISMATIC_RUNES)]
     
     --[[ 原逻辑：随机选择一个符文池
     -- 随机选择一个符文池

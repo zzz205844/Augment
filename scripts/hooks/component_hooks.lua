@@ -9,6 +9,7 @@ DOUBLE_UP_KILLERS = DOUBLE_UP_KILLERS or {}
 AddComponentPostInit("lootdropper", function(LootDropper, lootdropper_inst)
     local oldGenerateLoot = LootDropper.GenerateLoot
     
+    -- 覆写 GenerateLoot 以在复活后提供双倍掉落
     function LootDropper:GenerateLoot()
         local loot = oldGenerateLoot(self)
         
@@ -19,7 +20,7 @@ AddComponentPostInit("lootdropper", function(LootDropper, lootdropper_inst)
             killer = self.inst.components.combat.lastattacker
         end
         
-        if killer and killer:IsValid() and DOUBLE_UP_KILLERS[killer] then
+        if killer and killer:IsValid() and DOUBLE_UP_KILLERS[killer] and lootdropper_inst._doubleup_revived then
             -- 双倍掉落
             local doubled_loot = {}
             for _, item_prefab in ipairs(loot) do
@@ -27,6 +28,7 @@ AddComponentPostInit("lootdropper", function(LootDropper, lootdropper_inst)
                 table.insert(doubled_loot, item_prefab)
             end
             loot = doubled_loot
+            lootdropper_inst._doubleup_revived = nil
         end
         
         return loot
@@ -40,6 +42,7 @@ CHAIN_LIGHTNING_WORKERS = CHAIN_LIGHTNING_WORKERS or {}
 AddComponentPostInit("workable", function(Workable, workable_inst)
     local oldWorkedBy = Workable.WorkedBy
     
+    -- 覆写 WorkedBy 以传播连锁工作进度
     function Workable:WorkedBy(worker, numworks, ...)
         local result = oldWorkedBy(self, worker, numworks, ...)
         

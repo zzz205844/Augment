@@ -8,6 +8,7 @@ function ApplyInfernoDragon(inst)
     
     inst._inferno_cooldown = 0  -- 冷却时间计时器
     
+    -- 监听攻击事件以触发AOE
     local function OnAttack(inst, data)
         if data and data.target and inst._inferno_cooldown <= 0 then
             local x, y, z = data.target.Transform:GetWorldPosition()
@@ -43,6 +44,7 @@ function ApplyOceanDragon(inst)
     
     inst._ocean_cooldown = 0
     
+    -- 监听攻击事件以触发治疗效果
     local function OnAttack(inst, data)
         if data and data.target and inst._ocean_cooldown <= 0 then
             if inst.components.health then
@@ -77,10 +79,12 @@ function ApplyCloudDragon(inst)
     inst._cloud_last_combat = _G.GetTime()
     inst._cloud_speed_active = false
     
+    -- 记录最近一次战斗相关事件
     local function OnCombatEvent()
         inst._cloud_last_combat = _G.GetTime()
     end
     
+    -- 根据战斗状态控制移速增益
     local function UpdateCloudSpeed(inst)
         local current_time = _G.GetTime()
         
